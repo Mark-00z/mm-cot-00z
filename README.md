@@ -15,6 +15,11 @@ Install all required python dependencies:
 pip install -r requirements.txt
 ```
 
+The project expects versions of key libraries that support each other. In particular,
+`sentence-transformers` should be at least version `2.2.2` and
+`huggingface-hub` should be `0.17.0` or newer to avoid import errors when
+running the training scripts.
+
 ## Datasets
 
 Download the dataset from the following repository:
