@@ -20,6 +20,20 @@ The project expects versions of key libraries that support each other. In partic
 `huggingface-hub` should be `0.17.0` or newer to avoid import errors when
 running the training scripts.
 
+## Offline Model Download
+
+Some environments block direct access to HuggingFace and return 403 errors
+when models are downloaded on-the-fly. To prepare a model for offline
+training, run the helper script on a machine with internet access:
+
+```
+bash download_model.sh t5-base
+```
+
+The command clones the repository of `t5-base` into `models/t5-base`. Use
+the resulting folder as the `--model` argument in the training or inference
+commands, e.g. `--model models/t5-base`.
+
 ## Datasets
 
 Download the dataset from the following repository:
