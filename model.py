@@ -22,6 +22,17 @@ from transformers.utils.model_parallel_utils import assert_device_map, get_devic
 from torch.utils.checkpoint import checkpoint
 
 class JointEncoder(T5Stack):
+    """T5 encoder that fuses textual and visual tokens.
+
+    The class extends :class:`~transformers.T5Stack` and adds a small
+    projection layer so that visual features (e.g. ViT patches or CLAT lesion
+    tokens) can be mapped into the textual embedding space.  A single-head
+    attention layer aligns the two modalities followed by a gating mechanism
+    which decides how much visual context should influence each textual
+    token.  The resulting sequence is then processed by the standard T5
+    blocks.
+    """
+
     def __init__(self, config, embed_tokens=None, patch_size=None):
         super().__init__(config)
 
@@ -111,6 +122,16 @@ class JointEncoder(T5Stack):
         output_hidden_states=None,
         return_dict=None,
     ):
+        """Run the joint encoder.
+
+        ``image_ids`` is expected to be a sequence of visual features of
+        shape ``(batch, num_patches, patch_dim)``.  For CLAT features these
+        patches correspond to lesion tokens instead of regular image patches.
+        They are projected to the textual ``d_model`` size and fused with the
+        input embeddings using multi-head attention followed by a gating
+        operation.
+        """
+
         # Model parallel
         if self.model_parallel:
             torch.cuda.set_device(self.first_device)
