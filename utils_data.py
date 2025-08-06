@@ -11,6 +11,11 @@ img_shape = {
     "clip": (49, 2048),
     "detr": (100, 256),
     "vit": (145, 1024),
+    # CLAT produces one token per lesion concept.  The DR dataset
+    # used in the paper defines four lesions and each token has an
+    # embedding dimension of 384.  These tokens can be treated as
+    # image patches by the JointEncoder.
+    "clat": (4, 384),
 }
 
 def load_data_std(args):
@@ -32,12 +37,20 @@ def load_data_std(args):
     return problems, qids,
 
 def load_data_img(args):
+    """Load ScienceQA problems together with pre-extracted image features.
+
+    When ``args.img_type`` is set to ``"clat"`` this function expects
+    lesion-level visual tokens extracted from a pretrained CLAT model.  The
+    tokens should be stored in ``vision_features/clat.pth`` and indexed via
+    ``data/name_map.json`` in the same way as the other feature types.
+    """
+
     problems = json.load(open(os.path.join(args.data_root, 'scienceqa/problems.json')))
     pid_splits = json.load(open(os.path.join(args.data_root, 'scienceqa/pid_splits.json')))
     captions = json.load(open(args.caption_file))["captions"]
     name_maps = json.load(open('data/name_map.json'))
 
-    # check
+    # Select the appropriate feature file based on ``img_type``.
     if args.img_type == "resnet":
         image_features = np.load('vision_features/resnet.npy')
         image_features = np.expand_dims(image_features, axis=1)
@@ -48,10 +61,16 @@ def load_data_img(args):
         image_features = np.load('vision_features/detr.npy')
     elif args.img_type == "vit":
         image_features = torch.load("vision_features/vit.pth")
+    elif args.img_type == "clat":
+        # Lesion tokens produced by CLAT are stored as a PyTorch tensor
+        # (N, num_lesions, 384).  They are loaded with ``torch.load`` so the
+        # gradient type is preserved for downstream use.
+        image_features = torch.load('vision_features/clat.pth')
     else:
         image_features = np.load('vision_features/detr.npy')
     print("img_features size: ", image_features.shape)
 
+    # Attach captions to the problems dictionary.
     for qid in problems:
         problems[qid]['caption'] = captions[qid] if qid in captions else ""
 
@@ -136,11 +155,13 @@ class ScienceQADatasetStd(Dataset):
 
 
 class ScienceQADatasetImg(Dataset):
-    """
-    Creating a custom dataset for reading the dataset and
-    loading it into the dataloader to pass it to the
-    neural network for finetuning the model
+    """Dataset that returns multimodal ScienceQA samples.
 
+    Compared to :class:`ScienceQADatasetStd`, this version also provides
+    image features.  The features can originate from traditional vision
+    encoders (ViT, DETR, CLIP, etc.) or from CLAT where each feature is a
+    lesion token.  The dataset is agnostic to the source of features and
+    simply returns the pre-extracted tensor associated with each question.
     """
 
     def __init__(
