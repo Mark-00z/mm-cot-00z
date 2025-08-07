@@ -98,7 +98,7 @@ def main() -> None:
     image_files = sorted(os.listdir(args.data_root))
     features: List = []
     name_map: Dict[str, int] = {}
-    for idx, img_name in enumerate(image_files):
+    for idx, img_name in enumerate(image_files, start=1):
         path = os.path.join(args.data_root, img_name)
         feats = extract_feature(model, path, device)
         features.append(feats)
