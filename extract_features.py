@@ -53,7 +53,7 @@ if __name__ == '__main__':
     elif args.img_type == "detr":
         detr_model = torch.hub.load('cooelf/detr', 'detr_resnet101_dc5', pretrained=True)
         detr_model.eval()
-    for idx, image in enumerate(tqdm(all_images)):
+    for idx, image in enumerate(tqdm(all_images), start=1):
         if idx % 100 == 0: print(idx)
         if os.path.exists(os.path.join(args.data_root, image, "image.png")):
             curr_dir = os.path.join(args.data_root, image, "image.png")

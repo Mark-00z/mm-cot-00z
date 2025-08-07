@@ -200,7 +200,9 @@ class ScienceQADatasetImg(Dataset):
             self.target_text.append(target)
             self.source_text.append(prompt)
             if str(qid) in name_maps:
-                i_vectors = image_features[int(name_maps[str(qid)])]
+                # ``name_maps`` stores feature indices using a 1-based convention
+                # so convert to zero-based indexing before lookup.
+                i_vectors = image_features[int(name_maps[str(qid)]) - 1]
                 self.image_ids.append(i_vectors)
             else:
                 shape = img_shape[args.img_type]
