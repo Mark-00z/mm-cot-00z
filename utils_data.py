@@ -200,7 +200,12 @@ class ScienceQADatasetImg(Dataset):
             self.target_text.append(target)
             self.source_text.append(prompt)
             if str(qid) in name_maps:
-                i_vectors = image_features[int(name_maps[str(qid)])]
+                idx = int(name_maps[str(qid)])
+                if not 0 <= idx < len(image_features):
+                    raise ValueError(
+                        f"Image index {idx} for qid {qid} is out of bounds"
+                    )
+                i_vectors = image_features[idx]
                 self.image_ids.append(i_vectors)
             else:
                 shape = img_shape[args.img_type]
