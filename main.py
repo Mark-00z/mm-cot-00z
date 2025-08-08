@@ -255,9 +255,7 @@ def T5Trainer(
     valid_params = set(sig.parameters)
     strategy_args = final_eval_args if args.final_eval else epoch_eval_args
 
-    if "evaluation_strategy" not in valid_params:
-        for k in ["evaluation_strategy", "load_best_model_at_end", "metric_for_best_model"]:
-            strategy_args.pop(k, None)
+
 
     for k, v in list(strategy_args.items()):
         if k not in valid_params:
