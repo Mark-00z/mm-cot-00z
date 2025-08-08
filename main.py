@@ -254,6 +254,9 @@ def T5Trainer(
     sig = inspect.signature(Seq2SeqTrainingArguments.__init__)
     valid_params = set(sig.parameters)
     strategy_args = final_eval_args if args.final_eval else epoch_eval_args
+
+
+
     for k, v in list(strategy_args.items()):
         if k not in valid_params:
             strategy_args.pop(k)
