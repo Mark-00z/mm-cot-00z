@@ -7,6 +7,7 @@ import json
 import argparse
 import random
 from transformers import AutoTokenizer, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer, T5ForConditionalGeneration
+import inspect
 from model import T5ForMultimodalGeneration
 from utils_data import img_shape, load_data_std, load_data_img, ScienceQADatasetStd, ScienceQADatasetImg
 from utils_prompt import *
@@ -217,47 +218,55 @@ def T5Trainer(
         return result
 
     # only use the last model for evaluation to save time
-    if args.final_eval:
-        training_args = Seq2SeqTrainingArguments(
-            save_dir,
-            do_train=True if args.evaluate_dir is None else False,
-            do_eval=False,
-            evaluation_strategy="no",
-            logging_strategy="steps",
-            save_strategy="epoch",
-            save_total_limit = 2,
-            learning_rate= args.lr,
-            eval_accumulation_steps=args.eval_acc,
-            per_device_train_batch_size=args.bs,
-            per_device_eval_batch_size=args.eval_bs,
-            weight_decay=0.01,
-            num_train_epochs=args.epoch,
-            predict_with_generate=args.use_generate,
-            generation_max_length=args.output_len,
-            report_to="none",
-        )
-    # evaluate at each epoch
-    else:
-        training_args = Seq2SeqTrainingArguments(
-            save_dir,
-            do_train=True if args.evaluate_dir is None else False,
-            do_eval=True,
-            evaluation_strategy="epoch",
-            logging_strategy="steps",
-            save_strategy="epoch",
-            save_total_limit = 2,
-            learning_rate= args.lr,
-            eval_accumulation_steps=args.eval_acc,
-            per_device_train_batch_size=args.bs,
-            per_device_eval_batch_size=args.eval_bs,
-            weight_decay=0.01,
-            num_train_epochs=args.epoch,
-            metric_for_best_model="accuracy" if args.prompt_format == "QCMG-A" or args.prompt_format == "QCM-A" else "rougeL",
-            predict_with_generate=args.use_generate,
-            generation_max_length=args.output_len,
-            load_best_model_at_end=True,
-            report_to="none",
-        )
+    common_args = {
+        "output_dir": save_dir,
+        "do_train": True if args.evaluate_dir is None else False,
+        "learning_rate": args.lr,
+        "eval_accumulation_steps": args.eval_acc,
+        "per_device_train_batch_size": args.bs,
+        "per_device_eval_batch_size": args.eval_bs,
+        "weight_decay": 0.01,
+        "num_train_epochs": args.epoch,
+        "predict_with_generate": args.use_generate,
+        "generation_max_length": args.output_len,
+        "report_to": "none",
+    }
+
+    final_eval_args = {
+        "do_eval": False,
+        "evaluation_strategy": "no",
+        "logging_strategy": "steps",
+        "save_strategy": "epoch",
+        "save_total_limit": 2,
+    }
+
+    epoch_eval_args = {
+        "do_eval": True,
+        "evaluation_strategy": "epoch",
+        "logging_strategy": "steps",
+        "save_strategy": "epoch",
+        "save_total_limit": 2,
+        "metric_for_best_model": "accuracy" if args.prompt_format == "QCMG-A" or args.prompt_format == "QCM-A" else "rougeL",
+        "load_best_model_at_end": True,
+    }
+
+    # Filter out kwargs unsupported by the installed transformers version
+    sig = inspect.signature(Seq2SeqTrainingArguments.__init__)
+    valid_params = set(sig.parameters)
+    strategy_args = final_eval_args if args.final_eval else epoch_eval_args
+
+    if "evaluation_strategy" not in valid_params:
+        for k in ["evaluation_strategy", "load_best_model_at_end", "metric_for_best_model"]:
+            strategy_args.pop(k, None)
+
+    for k, v in list(strategy_args.items()):
+        if k not in valid_params:
+            strategy_args.pop(k)
+    for k, v in list(common_args.items()):
+        if k not in valid_params:
+            common_args.pop(k)
+
+    training_args = Seq2SeqTrainingArguments(**{**common_args, **strategy_args})
 
     trainer = Seq2SeqTrainer(
         model=model,
