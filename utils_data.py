@@ -201,8 +201,20 @@ class ScienceQADatasetImg(Dataset):
             self.source_text.append(prompt)
             if str(qid) in name_maps:
                 # ``name_maps`` stores feature indices using a 1-based convention
-                # so convert to zero-based indexing before lookup.
-                i_vectors = image_features[int(name_maps[str(qid)]) - 1]
+                # so convert to zero-based indexing before lookup.  In some
+                # cases the mapping may point to an index that is outside the
+                # available ``image_features`` tensor (e.g. when a feature file
+                # contains fewer images than ``name_maps``).  Guard against
+                # such mismatches by verifying the computed index before
+                # accessing ``image_features``.  If the index is invalid, fall
+                # back to a zero tensor so that training can proceed instead of
+                # raising an ``IndexError``.
+                index = int(name_maps[str(qid)]) - 1
+                if 0 <= index < len(image_features):
+                    i_vectors = image_features[index]
+                else:
+                    shape = img_shape[args.img_type]
+                    i_vectors = np.zeros(shape)
                 self.image_ids.append(i_vectors)
             else:
                 shape = img_shape[args.img_type]
